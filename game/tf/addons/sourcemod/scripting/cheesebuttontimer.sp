@@ -25,16 +25,19 @@
 const int CHEESEBUTTON_0_HAMMERID = 3261827;
 const int CHEESEBUTTON_1_HAMMERID = 3271925;
 
-int g_nCheeseButton0Idx = -1;
-int g_nCheeseButton1Idx = -1;
-bool g_bCanPlayCheeseSound = true;
-int g_nCheeseSoundPlayNum = 0;
+int		g_nCheeseButton0Idx = -1;
+int		g_nCheeseButton1Idx = -1;
+bool	g_bCanPlayCheeseSound = true;
+int		g_nCheeseSoundPlayNum = 0;
+
+ConVar	sv_cbt_interval;
+bool	g_bCBTEnabled = true;
 
 public Plugin myinfo =
 {
 	name		= "Cheese Button Timer",
 	author		= "Andrew \"andrewb\" Betson",
-	description	= "Places a timer on the cheese button on mcwallmart_g3_winter_256 that gets 15 seconds longer each time the button is pressed.",
+	description	= "Places a timer on the cheese buttons on mcwallmart_g3_winter_256 that gets 15 seconds longer each time either button is pressed.",
 	version		= "1.0",
 	url			= "https://www.github.com/AndrewBetson/TF-CheeseButtonTimer"
 };
@@ -45,6 +48,12 @@ public void OnPluginStart()
 	{
 		SetFailState( "Cheese Button Timer is only compatible with Team Fortress 2." );
 	}
+
+	sv_cbt_interval = CreateConVar( "sv_cbt_interval", "15.0", "Number of seconds for cheese button timer length to increase each time the sound is played." );
+	AutoExecConfig( true, "cheesebuttontimer" );
+
+	// Command to allow staff to toggle the timer functionality.
+	RegAdminCmd( "sm_cbt", Cmd_CBT, ADMFLAG_SLAY );
 
 	HookEvent( "teamplay_game_over", Event_TeamplayGameOver, EventHookMode_PostNoCopy );
 }
@@ -98,10 +107,10 @@ public Action Event_TeamplayGameOver( Event hEvent, const char[] szName, bool bD
 	}
 }
 
-public Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, float flDelay )
+Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, float flDelay )
 {
 	// Not a cheese button; don't care.
-	if ( !( nCallerID == g_nCheeseButton0Idx || nCallerID == g_nCheeseButton1Idx ) )
+	if ( !( nCallerID == g_nCheeseButton0Idx || nCallerID == g_nCheeseButton1Idx ) || !g_bCBTEnabled )
 	{
 		return Plugin_Continue;
 	}
@@ -111,17 +120,15 @@ public Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActiva
 		g_bCanPlayCheeseSound = false;
 		g_nCheeseSoundPlayNum++;
 
-		CreateTimer( 15.0 * g_nCheeseSoundPlayNum, Timer_EnableCheeseSound );
+		CreateTimer( sv_cbt_interval.FloatValue * g_nCheeseSoundPlayNum, Timer_EnableCheeseSound );
 
 		AcceptEntityInput( g_nCheeseButton0Idx, "Lock", 0, 0, 0 );
 		AcceptEntityInput( g_nCheeseButton1Idx, "Lock", 0, 0, 0 );
 
 		return Plugin_Continue;
 	}
-	else
-	{
-		return Plugin_Handled;
-	}
+
+	return Plugin_Handled;
 }
 
 Action Timer_EnableCheeseSound( Handle hTimer )
@@ -130,4 +137,10 @@ Action Timer_EnableCheeseSound( Handle hTimer )
 
 	AcceptEntityInput( g_nCheeseButton0Idx, "Unlock", 0, 0, 0 );
 	AcceptEntityInput( g_nCheeseButton1Idx, "Unlock", 0, 0, 0 );
+}
+
+Action Cmd_CBT( int nClientID, int nNumArgs )
+{
+	g_bCBTEnabled = !g_bCBTEnabled;
+	ReplyToCommand( nClientID, "[SM]: %s", g_bCBTEnabled ? "Enabled CBT" : "Disabled CBT" );
 }
