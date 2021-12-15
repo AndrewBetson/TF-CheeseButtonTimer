@@ -41,7 +41,7 @@ public Plugin myinfo =
 	name		= "Cheese Button Timer",
 	author		= "Andrew \"andrewb\" Betson; thanks to reBane for the suggestion to find the buttons by origin rather than hammerID",
 	description	= "Places a timer on the cheese buttons on mcwallmart_g3_winter_256 that gets longer each time either button is pressed.",
-	version		= "2.0",
+	version		= "2.1",
 	url			= "https://www.github.com/AndrewBetson/TF-CheeseButtonTimer"
 };
 
