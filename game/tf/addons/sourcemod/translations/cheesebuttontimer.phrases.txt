@@ -1,0 +1,17 @@
+"Phrases"
+{
+	"CBT_ButtonsUnavailable"
+	{
+		"en"		"{darkviolet}[CBT]{default} Cheese buttons currently locked, check back later!"
+	}
+
+	"CBT_Enabled"
+	{
+		"en"		"{darkviolet}[CBT]{default} Enabled Cheese Button Timer"
+	}
+
+	"CBT_Disabled"
+	{
+		"en"		"{darkviolet}[CBT]{default} Disabled Cheese Button Timer"
+	}
+}
