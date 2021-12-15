@@ -19,16 +19,19 @@
 #include <sdkhooks>
 #include <sdktools>
 
+#include <morecolors>
+
 #pragma semicolon 1
 #pragma newdecls required
 
-const int CHEESEBUTTON_0_HAMMERID = 3261827;
-const int CHEESEBUTTON_1_HAMMERID = 3271925;
+float CHEESEBUTTON0_ORIGIN[ 3 ] = { -513.0, -564.0, 231.25 };
+float CHEESEBUTTON1_ORIGIN[ 3 ] = { -548.5, 944.0, 256.0 };
+
+bool	g_bCanPlayCheeseSound = true;
+int		g_nCheeseSoundPlayNum = 0;
 
 int		g_nCheeseButton0Idx = -1;
 int		g_nCheeseButton1Idx = -1;
-bool	g_bCanPlayCheeseSound = true;
-int		g_nCheeseSoundPlayNum = 0;
 
 ConVar	sv_cbt_interval;
 bool	g_bCBTEnabled = true;
@@ -36,9 +39,9 @@ bool	g_bCBTEnabled = true;
 public Plugin myinfo =
 {
 	name		= "Cheese Button Timer",
-	author		= "Andrew \"andrewb\" Betson",
+	author		= "Andrew \"andrewb\" Betson; thanks to reBane for the suggestion to find the buttons by origin rather than hammerID",
 	description	= "Places a timer on the cheese buttons on mcwallmart_g3_winter_256 that gets longer each time either button is pressed.",
-	version		= "1.1.5",
+	version		= "2.0",
 	url			= "https://www.github.com/AndrewBetson/TF-CheeseButtonTimer"
 };
 
@@ -49,39 +52,57 @@ public void OnPluginStart()
 		SetFailState( "Cheese Button Timer is only compatible with Team Fortress 2." );
 	}
 
+	LoadTranslations( "cheesebuttontimer.phrases" );
+
 	sv_cbt_interval = CreateConVar( "sv_cbt_interval", "15.0", "Number of seconds for cheese button timer length to increase each time the sound is played." );
 	AutoExecConfig( true, "cheesebuttontimer" );
 
 	// Command to allow staff to toggle the timer functionality.
 	RegAdminCmd( "sm_cbt", Cmd_CBT, ADMFLAG_SLAY );
 
-	HookEvent( "teamplay_game_over", Event_TeamplayGameOver, EventHookMode_PostNoCopy );
+	HookEvent( "teamplay_round_start", Event_TeamplayRoundBeginOrEnd, EventHookMode_PostNoCopy );
+	HookEvent( "teamplay_game_over", Event_TeamplayRoundBeginOrEnd, EventHookMode_PostNoCopy );
 }
 
-public void TF2_OnWaitingForPlayersStart()
+public void Event_TeamplayRoundBeginOrEnd( Event hEvent, const char[] szName, bool bDontBroadcast )
 {
 	char szMapName[ PLATFORM_MAX_PATH ];
 	GetCurrentMap( szMapName, sizeof( szMapName ) );
 
 	if ( StrEqual( szMapName, "mcwallmart_g3_winter_256" ) )
 	{
-		HookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
-
-		// Get the indices of the two cheese buttons.
-		int nEntIdx = -1;
-		while( ( nEntIdx = FindEntityByClassname( nEntIdx, "func_button" ) ) != INVALID_ENT_REFERENCE )
+		if ( StrEqual( szName, "teamplay_round_start" ) )
 		{
-			// These don't have targetnames so we have to find them by hammerID.
-			int nEntHammerID = GetEntProp( nEntIdx, Prop_Data, "m_iHammerID" );
-			if ( nEntHammerID == CHEESEBUTTON_0_HAMMERID )
-			{
-				g_nCheeseButton0Idx = nEntIdx;
-			}
+			HookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
 
-			if ( nEntHammerID == CHEESEBUTTON_1_HAMMERID )
+			int nCurEntIdx;
+			while( ( nCurEntIdx = FindEntityByClassname( nCurEntIdx, "func_button" ) ) != INVALID_ENT_REFERENCE )
 			{
-				g_nCheeseButton1Idx = nEntIdx;
+				float vEntOrigin[ 3 ];
+				GetEntPropVector( nCurEntIdx, Prop_Send, "m_vecOrigin", vEntOrigin );
+
+				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON0_ORIGIN, true ) <= 0.0 )
+				{
+					g_nCheeseButton0Idx = nCurEntIdx;
+				}
+
+				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON1_ORIGIN, true ) <= 0.0 )
+				{
+					g_nCheeseButton1Idx = nCurEntIdx;
+				}
+
+				if ( g_nCheeseButton0Idx != -1 && g_nCheeseButton1Idx != -1 )
+				{
+					break;
+				}
 			}
+		}
+		else // teamplay_game_over
+		{
+			UnhookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
+
+			g_nCheeseButton0Idx = -1;
+			g_nCheeseButton1Idx = -1;
 		}
 
 		g_bCanPlayCheeseSound = true;
@@ -89,21 +110,9 @@ public void TF2_OnWaitingForPlayersStart()
 	}
 }
 
-public Action Event_TeamplayGameOver( Event hEvent, const char[] szName, bool bDontBroadcast )
-{
-	char szMapName[ PLATFORM_MAX_PATH ];
-	GetCurrentMap( szMapName, sizeof( szMapName ) );
-
-	if ( StrEqual( szMapName, "mcwallmart_g3_winter_256" ) )
-	{
-		// NOTE(AndrewB): Not sure if this is actually needed, or if the hook gets implicitly removed when TF2_OnWaitingForPlayersStart gets called again...
-		UnhookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
-	}
-}
-
 Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, float flDelay )
 {
-	// Not a cheese button; don't care.
+	// Not a cheese button, don't care.
 	if ( !( nCallerID == g_nCheeseButton0Idx || nCallerID == g_nCheeseButton1Idx ) || !g_bCBTEnabled )
 	{
 		return Plugin_Continue;
@@ -122,6 +131,12 @@ Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, 
 		return Plugin_Continue;
 	}
 
+	// HACK(AndrewB): Sometimes the activator ID is -1. I do not know why. I do not care why.
+	if ( nActivatorID != -1 )
+	{
+		CPrintToChat( nActivatorID, "%t", "CBT_ButtonsUnavailable" );
+	}
+
 	return Plugin_Handled;
 }
 
@@ -136,5 +151,5 @@ Action Timer_EnableCheeseSound( Handle hTimer )
 Action Cmd_CBT( int nClientID, int nNumArgs )
 {
 	g_bCBTEnabled = !g_bCBTEnabled;
-	ReplyToCommand( nClientID, "[SM]: %s", g_bCBTEnabled ? "Enabled CBT" : "Disabled CBT" );
+	CReplyToCommand( nClientID, "%t", g_bCBTEnabled ? "CBT_Enabled" : "CBT_Disabled" );
 }

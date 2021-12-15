@@ -8,3 +8,5 @@ CBT exposes the following console-elements to users with <=slay command-access:
 # License
 CBT is released under version 3 of the GNU Affero General Public License.
 For more info, see `LICENSE.md`.
+
+Requires [morecolors](https://raw.githubusercontent.com/DoctorMcKay/sourcemod-plugins/master/scripting/include/morecolors.inc) to compile.
