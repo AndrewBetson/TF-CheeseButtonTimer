@@ -41,7 +41,7 @@ public Plugin myinfo =
 	name		= "Cheese Button Timer",
 	author		= "Andrew \"andrewb\" Betson; thanks to reBane for the suggestion to find the buttons by origin rather than hammerID",
 	description	= "Places a timer on the cheese buttons on mcwallmart_g3_winter_256 that gets longer each time either button is pressed.",
-	version		= "2.1",
+	version		= "2.1.1",
 	url			= "https://www.github.com/AndrewBetson/TF-CheeseButtonTimer"
 };
 
@@ -81,12 +81,12 @@ public void Event_TeamplayRoundBeginOrEnd( Event hEvent, const char[] szName, bo
 				float vEntOrigin[ 3 ];
 				GetEntPropVector( nCurEntIdx, Prop_Send, "m_vecOrigin", vEntOrigin );
 
-				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON0_ORIGIN, true ) <= 0.0 )
+				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON0_ORIGIN, true ) <= 1.0 )
 				{
 					g_nCheeseButton0Idx = nCurEntIdx;
 				}
 
-				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON1_ORIGIN, true ) <= 0.0 )
+				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON1_ORIGIN, true ) <= 1.0 )
 				{
 					g_nCheeseButton1Idx = nCurEntIdx;
 				}
