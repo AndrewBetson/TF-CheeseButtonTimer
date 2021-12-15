@@ -107,6 +107,7 @@ public void Event_TeamplayRoundBeginOrEnd( Event hEvent, const char[] szName, bo
 
 		g_bCanPlayCheeseSound = true;
 		g_nCheeseSoundPlayNum = 0;
+		g_bCBTEnabled = true;
 	}
 }
 
