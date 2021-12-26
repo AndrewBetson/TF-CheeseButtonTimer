@@ -30,9 +30,6 @@ float CHEESEBUTTON1_ORIGIN[ 3 ] = { -548.5, 944.0, 256.0 };
 bool	g_bCanPlayCheeseSound = true;
 int		g_nCheeseSoundPlayNum = 0;
 
-int		g_nCheeseButton0Idx = -1;
-int		g_nCheeseButton1Idx = -1;
-
 ConVar	sv_cbt_interval;
 bool	g_bCBTEnabled = true;
 
@@ -41,7 +38,7 @@ public Plugin myinfo =
 	name		= "Cheese Button Timer",
 	author		= "Andrew \"andrewb\" Betson; thanks to reBane for the suggestion to find the buttons by origin rather than hammerID",
 	description	= "Places a timer on the cheese buttons on mcwallmart_g3_winter_256 that gets longer each time either button is pressed.",
-	version		= "2.1.1",
+	version		= "2.1.2",
 	url			= "https://www.github.com/AndrewBetson/TF-CheeseButtonTimer"
 };
 
@@ -74,35 +71,10 @@ public void Event_TeamplayRoundBeginOrEnd( Event hEvent, const char[] szName, bo
 		if ( StrEqual( szName, "teamplay_round_start" ) )
 		{
 			HookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
-
-			int nCurEntIdx;
-			while( ( nCurEntIdx = FindEntityByClassname( nCurEntIdx, "func_button" ) ) != INVALID_ENT_REFERENCE )
-			{
-				float vEntOrigin[ 3 ];
-				GetEntPropVector( nCurEntIdx, Prop_Send, "m_vecOrigin", vEntOrigin );
-
-				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON0_ORIGIN, true ) <= 1.0 )
-				{
-					g_nCheeseButton0Idx = nCurEntIdx;
-				}
-
-				if ( GetVectorDistance( vEntOrigin, CHEESEBUTTON1_ORIGIN, true ) <= 1.0 )
-				{
-					g_nCheeseButton1Idx = nCurEntIdx;
-				}
-
-				if ( g_nCheeseButton0Idx != -1 && g_nCheeseButton1Idx != -1 )
-				{
-					break;
-				}
-			}
 		}
 		else // teamplay_game_over
 		{
 			UnhookEntityOutput( "func_button", "OnDamaged", OnButtonDamaged );
-
-			g_nCheeseButton0Idx = -1;
-			g_nCheeseButton1Idx = -1;
 		}
 
 		g_bCanPlayCheeseSound = true;
@@ -113,8 +85,17 @@ public void Event_TeamplayRoundBeginOrEnd( Event hEvent, const char[] szName, bo
 
 Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, float flDelay )
 {
-	// Not a cheese button, don't care.
-	if ( !( nCallerID == g_nCheeseButton0Idx || nCallerID == g_nCheeseButton1Idx ) || !g_bCBTEnabled )
+	if ( !g_bCBTEnabled )
+	{
+		return Plugin_Continue;
+	}
+
+	// HACK(AndrewB): Caching neither an index nor a ref of these buttons works reliably, so just brute force it.
+
+	float vButtonOrigin[ 3 ];
+	GetEntPropVector( nCallerID, Prop_Send, "m_vecOrigin", vButtonOrigin );
+
+	if ( !( GetVectorDistance( vButtonOrigin, CHEESEBUTTON0_ORIGIN ) <= 1.0 || GetVectorDistance( vButtonOrigin, CHEESEBUTTON1_ORIGIN ) <= 1.0 ) )
 	{
 		return Plugin_Continue;
 	}
@@ -125,9 +106,6 @@ Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, 
 		g_nCheeseSoundPlayNum++;
 
 		CreateTimer( sv_cbt_interval.FloatValue * g_nCheeseSoundPlayNum, Timer_EnableCheeseSound );
-
-		AcceptEntityInput( g_nCheeseButton0Idx, "Lock", 0, 0, 0 );
-		AcceptEntityInput( g_nCheeseButton1Idx, "Lock", 0, 0, 0 );
 
 		return Plugin_Continue;
 	}
@@ -144,9 +122,6 @@ Action OnButtonDamaged( const char[] szOutput, int nCallerID, int nActivatorID, 
 Action Timer_EnableCheeseSound( Handle hTimer )
 {
 	g_bCanPlayCheeseSound = true;
-
-	AcceptEntityInput( g_nCheeseButton0Idx, "Unlock", 0, 0, 0 );
-	AcceptEntityInput( g_nCheeseButton1Idx, "Unlock", 0, 0, 0 );
 }
 
 Action Cmd_CBT( int nClientID, int nNumArgs )
